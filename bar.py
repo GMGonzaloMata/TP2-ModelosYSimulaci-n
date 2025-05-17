@@ -137,13 +137,13 @@ class BarSimulator:
             seeds.insert(0, "1,2,3")
             seeds.pack()
             self.parametros_inputs["seeds"] = seeds
-            tk.Label(self.param_frame, text="m(mayor a las semillas):").pack()
+            tk.Label(self.param_frame, text="m:").pack()
             m = tk.Entry(self.param_frame)
             m.insert(0, "1000")
             m.pack()
 
         elif seleccion == "Congruencial Mixto":
-            for param, val in [("Semilla", "1"), ("a", "5"), ("c", "3"), ("m(mayor a las semillas)", "16")]:
+            for param, val in [("Semilla", "1"), ("a", "5"), ("c", "3"), ("m", "16")]:
                 tk.Label(self.param_frame, text=f"{param}:").pack()
                 entry = tk.Entry(self.param_frame)
                 entry.insert(0, val)
@@ -151,7 +151,7 @@ class BarSimulator:
                 self.parametros_inputs[param.lower()] = entry
 
         elif seleccion == "Congruecnial Multiplicativo":
-            for param, val in [("Semilla", "1"), ("a", "5"), ("m(mayor a las semillas)", "16")]:
+            for param, val in [("Semilla", "1"), ("a", "5"), ("m", "16")]:
                 tk.Label(self.param_frame, text=f"{param}:").pack()
                 entry = tk.Entry(self.param_frame)
                 entry.insert(0, val)
@@ -165,52 +165,58 @@ class BarSimulator:
 
         try:
             if seleccion == "Von Neumann":
-                if len(str(int(self.parametros_inputs["seed"].get())))!=4: 
-                    messagebox.showerror("Error de parámetros", f"Error al configurar el generador:\nSemilla con digitos distintos a 4")
-                    return
-                seed = int(self.parametros_inputs["seed"].get())
-                digits = 4
-                self.rng = VonNeumannRNG(seed=seed, digits=digits)
+                seed_text = self.parametros_inputs["seed"].get()
+                if not seed_text.isdigit() or len(seed_text) != 4:
+                    raise ValueError("La semilla debe ser un número entero de 4 dígitos.")
+                seed = int(seed_text)
+                self.rng = VonNeumannRNG(seed=seed, digits=4)
 
             elif seleccion == "Fibonacci":
-                if int(self.parametros_inputs["s1"].get())< 0: 
-                    messagebox.showerror("Error de parámetros", f"Error al configurar el generador: Semilla 1 no es positivo\n{e}")
-                    return
-                elif int(self.parametros_inputs["s2"].get())< 0 or int(self.parametros_inputs["s2"].get())==int(self.parametros_inputs["s1"].get()):
-                    messagebox.showerror("Error de parámetros", f"Error al configurar el generador\n{e}")
-                    return
                 s1 = int(self.parametros_inputs["s1"].get())
                 s2 = int(self.parametros_inputs["s2"].get())
+                if s1 <= 0 or s2 <= 0:
+                    raise ValueError("Las semillas deben ser enteros positivos.")
+                if s1 == s2:
+                    raise ValueError("Las semillas deben ser distintas.")
                 self.rng = FibonacciRNG(s1, s2)
 
             elif seleccion == "Congruencial Aditivo":
-                if not all(0 < s < m for s in self.parametros_inputs["seeds"].get()):
-                    messagebox.showerror("Error de parámetros", f"Error al configurar el generador\n{e}")
-                    return
-                seeds = [int(x.strip()) for x in self.parametros_inputs["seeds"].get().split(",")]
+                seeds_raw = self.parametros_inputs["seeds"].get().split(",")
+                seeds = [int(x.strip()) for x in seeds_raw]
+                if len(seeds) < 2:
+                    raise ValueError("Debe ingresar al menos dos semillas separadas por coma.")
+                if any(s < 0 for s in seeds):
+                    raise ValueError("Las semillas deben ser números enteros no negativos.")
                 self.rng = CongruencialAditivoRNG(seeds)
 
             elif seleccion == "Congruencial Mixto":
-                if int(self.parametros_inputs["semilla"].get())<int(self.parametros_inputs["m"].get()) or int(self.parametros_inputs["semilla"].get()) <= 0:
-                    messagebox.showerror("Error de parámetros", f"Error al configurar el generador\n{e}")
-                    return
                 seed = int(self.parametros_inputs["semilla"].get())
                 a = int(self.parametros_inputs["a"].get())
                 c = int(self.parametros_inputs["c"].get())
                 m = int(self.parametros_inputs["m"].get())
+                if m <= 0:
+                    raise ValueError("El módulo 'm' debe ser mayor que cero.")
+                if not (0 < a < m and 0 <= c < m and 0 <= seed < m):
+                    raise ValueError("Los parámetros deben cumplir: 0 <= semilla <m, c < m y 0 < a < m .")
                 self.rng = CongruencialMixtoRNG(seed=seed, a=a, c=c, m=m)
 
             elif seleccion == "Congruecnial Multiplicativo":
-                if int(self.parametros_inputs["semilla"].get())<int(self.parametros_inputs["m"].get()) or int(self.parametros_inputs["a"].get()) <= 0 or math.gcd(int(self.parametros_inputs["a"].get()), int(self.parametros_inputs["m"].get())) != 1:
-                    messagebox.showerror("Error de parámetros", f"Error al configurar el generador\n{e}")
-                    return
                 seed = int(self.parametros_inputs["semilla"].get())
                 a = int(self.parametros_inputs["a"].get())
                 m = int(self.parametros_inputs["m"].get())
+                if m <= 0:
+                    raise ValueError("El módulo 'm' debe ser mayor que cero.")
+                if not (0 < seed < m):
+                    raise ValueError("La semilla debe estar en el rango (0, m).")
+                if a <= 0 or math.gcd(a, m) != 1:
+                    raise ValueError("El multiplicador 'a' debe ser positivo y coprimo con 'm'.")
                 self.rng = CongruencialMultiplicativoRNG(seed=seed, a=a, m=m)
 
+        except ValueError as ve:
+            messagebox.showerror("Error de parámetros", str(ve))
+            return
         except Exception as e:
-            messagebox.showerror("Error de parámetros", f"Error al configurar el generador")
+            messagebox.showerror("Error de parámetros", f"Ocurrió un error inesperado: {e}")
             return
 
         self.simulando = True
